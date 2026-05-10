@@ -1,203 +1,149 @@
-# K-Means Clustering Project
+# Clustering Analysis Project
 
-A comprehensive Python project for performing K-Means clustering analysis on datasets, with a focus on best practices and proper evaluation metrics.
+A Python clustering project with an interactive Streamlit dashboard and support for multiple clustering algorithms.
 
 ## 📋 Project Overview
 
-This project implements K-Means clustering with:
-- Proper data preprocessing and standardization
-- Optimal cluster number determination (Elbow & Silhouette methods)
-- Multiple evaluation metrics (Silhouette Score, Davies-Bouldin Index)
-- Comprehensive visualizations
-- Modular, reusable code structure
+This project now supports:
+- **K-Means** clustering
+- **DBSCAN** density-based clustering
+- **Hierarchical** agglomerative clustering
+- Interactive parameter tuning in a Streamlit app
+- Cluster validation metrics and visual diagnostics
+- CSV export of clustered results and summary report
 
 ## 🚀 Quick Start
 
 ### Installation
 
-1. Clone or download this project
+1. Clone or download this project.
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Usage
+### Run the Streamlit App
 
-#### Option 1: Jupyter Notebook (Recommended for beginners)
+Start the web dashboard with:
 ```bash
-jupyter notebook notebooks/kmeans_analysis.ipynb
+python -m streamlit run app.py
 ```
 
-#### Option 2: Python Scripts
-```python
-from src.data_preprocessing import load_and_preprocess_data
-from src.clustering import find_optimal_clusters, fit_kmeans
-from src.evaluation import evaluate_clustering
-from src.visualization import plot_elbow_curve, plot_clusters
-
-# Load and preprocess data
-X_scaled, scaler, df = load_and_preprocess_data('data/your_data.csv')
-
-# Find optimal number of clusters
-optimal_k = find_optimal_clusters(X_scaled, max_k=10)
-
-# Fit model
-kmeans, labels = fit_kmeans(X_scaled, n_clusters=optimal_k)
-
-# Evaluate
-metrics = evaluate_clustering(X_scaled, labels)
-
-# Visualize
-plot_clusters(X_scaled, labels, method='pca')
+Then open the URL shown in the terminal, typically:
 ```
+http://localhost:8501
+```
+
+### What You Can Do in the App
+
+- Upload your CSV dataset
+- Select numeric features for clustering
+- Choose between **K-Means**, **DBSCAN**, and **Hierarchical**
+- Adjust algorithm parameters
+- View optimal parameter guidance
+- Inspect cluster metrics and visualizations
+- Download clustered data and a report
 
 ## 📁 Project Structure
 
 ```
 kmeans_clustering_project/
-├── README.md                          # This file
-├── requirements.txt                   # Python dependencies
-├── config.py                          # Configuration settings
-├── data/                              # Data directory
-│   └── .gitkeep
-├── notebooks/                         # Jupyter notebooks
-│   └── kmeans_analysis.ipynb         # Main analysis notebook
-├── src/                               # Source code
-│   ├── __init__.py
-│   ├── data_preprocessing.py         # Data loading & cleaning
-│   ├── clustering.py                 # KMeans implementation
-│   ├── evaluation.py                 # Metrics & evaluation
-│   └── visualization.py              # Plotting functions
-└── results/                           # Output directory
-    └── .gitkeep
+├── README.md
+├── requirements.txt
+├── config.py
+├── app.py
+├── ClustruingExample.py
+├── data/
+│   ├── feature_data.csv
+│   └── SampleData.txt
+└── src/
+    ├── __init__.py
+    ├── clustering.py
+    ├── data_preprocessing.py
+    ├── evaluation.py
+    └── visualization.py
 ```
 
-## 🔑 Key Features
+## 🧠 Supported Algorithms
 
-### 1. Data Preprocessing
-- Automatic missing value handling
-- Feature standardization using StandardScaler
-- Support for CSV data files
+- **K-Means**: good for well-separated, spherical clusters.
+- **DBSCAN**: works with arbitrary cluster shapes and identifies noise.
+- **Hierarchical**: builds cluster hierarchies and supports dendrogram visualization.
 
-### 2. Optimal Cluster Selection
-- **Elbow Method**: Visual identification of optimal K
-- **Silhouette Analysis**: Quantitative cluster quality assessment
-- Automated K selection based on multiple metrics
-
-### 3. Evaluation Metrics
-- **Silhouette Score**: Measures cluster cohesion and separation
-- **Davies-Bouldin Index**: Evaluates cluster distinctiveness
-- **Inertia**: Within-cluster sum of squares
-
-### 4. Visualizations
-- Elbow curve plot
-- Silhouette score plot
-- 2D cluster visualization (using PCA)
-- Cluster characteristics analysis
-
-## 📊 Example Workflow
+## 📌 Usage Example (Python)
 
 ```python
 import pandas as pd
-from src.data_preprocessing import load_and_preprocess_data
-from src.clustering import KMeansAnalyzer
-from src.visualization import plot_all_visualizations
+from src.data_preprocessing import load_data, preprocess_features
+from src.clustering import ClusteringAnalyzer
+from src.visualization import plot_clusters, plot_cluster_profiles
 
-# 1. Load your data
-df = pd.read_csv('data/states_data.csv')
+# Load data
+csv_path = 'data/feature_data.csv'
+df = load_data(csv_path)
 
-# 2. Preprocess
-X_scaled, scaler, df_clean = load_and_preprocess_data(
-    'data/states_data.csv',
-    feature_columns=['Health_indices1', 'Health_indices2', 'Per_capita_income', 'GDP']
+# Preprocess features
+X_scaled, scaler, df_clean = preprocess_features(
+    df,
+    feature_columns=['Feature1', 'Feature2']
 )
 
-# 3. Create analyzer
-analyzer = KMeansAnalyzer(X_scaled)
-
-# 4. Find optimal K
-analyzer.find_optimal_k(max_k=10)
-
-# 5. Fit with optimal K
+# Run K-Means clustering
+analyzer = ClusteringAnalyzer(X_scaled, algorithm='kmeans')
 analyzer.fit(n_clusters=3)
-
-# 6. Evaluate
 results = analyzer.evaluate()
-print(f"Silhouette Score: {results['silhouette']:.4f}")
-print(f"Davies-Bouldin Index: {results['davies_bouldin']:.4f}")
+print(results)
 
-# 7. Visualize
-plot_all_visualizations(analyzer, X_scaled)
-
-# 8. Get cluster assignments
-df_clean['Cluster'] = analyzer.labels_
-df_clean.to_csv('results/clustered_data.csv', index=False)
+# Visualize
+fig = plot_clusters(X_scaled, analyzer.labels_)
+fig_profiles = plot_cluster_profiles(X_scaled, analyzer.labels_, feature_names=['Feature1', 'Feature2'])
 ```
 
-## 📈 Interpreting Results
+## 📈 Evaluation Metrics
 
-### Silhouette Score
-- **0.71 - 1.00**: Strong, well-separated clusters
-- **0.51 - 0.70**: Reasonable structure
-- **0.26 - 0.50**: Weak structure
-- **< 0.25**: No substantial structure
+The app and code support:
+- **Silhouette Score**: cluster cohesion/separation
+- **Davies-Bouldin Index**: cluster distinctiveness
+- **Calinski-Harabasz Score**: between-cluster vs within-cluster dispersion
+- **Inertia** (for K-Means)
 
-### Davies-Bouldin Index
-- **Lower is better**
-- **0 - 2**: Good clustering
-- **> 2**: Poor clustering
-
-### Elbow Method
-- Look for the "elbow" point where inertia decrease slows
-- This indicates diminishing returns from adding more clusters
-
-## 🛠️ Configuration
+## 🔧 Configuration
 
 Edit `config.py` to customize:
-- Random seed for reproducibility
-- Default number of clusters
-- Visualization settings
-- File paths
+- random seed
+- default cluster settings
+- visualization style
+- save paths and file outputs
 
-## 📚 Dependencies
+## 📦 Dependencies
 
 - Python 3.7+
-- numpy
 - pandas
+- numpy
 - scikit-learn
 - matplotlib
 - seaborn
-- jupyter
+- streamlit
+- scipy
 
-## 🎯 Best Practices Implemented
+## 🌟 Notes
 
-✅ Feature standardization before clustering  
-✅ Multiple methods for determining optimal K  
-✅ Comprehensive evaluation metrics  
-✅ Reproducible results (random_state)  
-✅ Proper handling of missing values  
-✅ Modular, reusable code  
-✅ Clear documentation and examples  
-
-## 📝 Common Pitfalls Avoided
-
-❌ Forgetting to standardize features  
-❌ Not visualizing results  
-❌ Picking K arbitrarily  
-❌ Not handling missing values  
-❌ Using categorical features without encoding  
-❌ Not setting random state  
+- The dashboard is the easiest way to explore the algorithms interactively.
+- Use `DBSCAN` when you expect noise or non-spherical clusters.
+- Use `Hierarchical` to inspect cluster structure with a dendrogram.
+- Use `K-Means` for faster, centroid-based clustering.
 
 ## 🤝 Contributing
 
-Feel free to extend this project with:
-- Additional clustering algorithms (DBSCAN, Hierarchical)
-- More evaluation metrics
-- Interactive visualizations (Plotly)
-- CLI interface
-- Automated reporting
+Contributions and improvements are welcome, including:
+- new clustering algorithms
+- additional visualizations
+- CLI mode
+- more dataset examples
 
 ## 📄 License
+
+Add your license text here.
 
 This project is open source and available for educational purposes.
 

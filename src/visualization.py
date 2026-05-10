@@ -432,6 +432,376 @@ def plot_all_visualizations(analyzer, X, save_dir=None):
     return figures
 
 
+def plot_dbscan_k_distance(X, k=4, save_path=None):
+    """
+    Plot k-distance graph for DBSCAN eps selection.
+
+    Parameters:
+    -----------
+    X : array-like
+        Feature matrix
+    k : int
+        Number of nearest neighbors to consider
+    save_path : str, optional
+        Path to save the figure
+
+    Returns:
+    --------
+    matplotlib.figure.Figure
+        The figure object
+    """
+    setup_plot_style()
+
+    from sklearn.neighbors import NearestNeighbors
+
+    # Calculate k-nearest neighbors
+    neigh = NearestNeighbors(n_neighbors=k)
+    nbrs = neigh.fit(X)
+    distances, indices = nbrs.kneighbors(X)
+
+    # Sort distances to k-th nearest neighbor
+    k_distances = np.sort(distances[:, k-1])
+
+    fig, ax = plt.subplots(figsize=config.FIGURE_SIZE, dpi=config.DPI)
+
+    ax.plot(range(1, len(k_distances) + 1), k_distances, 'b-', linewidth=2)
+    ax.set_xlabel('Points (sorted by distance)', fontsize=12, fontweight='bold')
+    ax.set_ylabel(f'{k}-Distance', fontsize=12, fontweight='bold')
+    ax.set_title(f'K-Distance Plot (k={k})\nLook for the "elbow" point for optimal eps',
+                 fontsize=14, fontweight='bold', pad=20)
+    ax.grid(True, alpha=0.3)
+
+    # Add annotation
+    ax.annotate('Choose eps at the elbow point',
+                xy=(len(k_distances)*0.7, k_distances[int(len(k_distances)*0.7)]),
+                xytext=(len(k_distances)*0.5, k_distances[int(len(k_distances)*0.3)]),
+                arrowprops=dict(arrowstyle='->', color='red'),
+                fontsize=10, color='red')
+
+    plt.tight_layout()
+
+    if save_path or config.SAVE_FIGURES:
+        if save_path is None:
+            save_path = os.path.join(config.RESULTS_DIR, f'dbscan_k_distance.{config.FIGURE_FORMAT}')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
+        if config.VERBOSE:
+            print(f"✓ DBSCAN k-distance plot saved to {save_path}")
+
+    return fig
+
+
+def plot_hierarchical_dendrogram(X, n_clusters=None, linkage='ward', save_path=None):
+    """
+    Plot hierarchical clustering dendrogram.
+
+    Parameters:
+    -----------
+    X : array-like
+        Feature matrix
+    n_clusters : int, optional
+        Number of clusters to highlight
+    linkage : str
+        Linkage method: 'ward', 'complete', 'average', 'single'
+    save_path : str, optional
+        Path to save the figure
+
+    Returns:
+    --------
+    matplotlib.figure.Figure
+        The figure object
+    """
+    setup_plot_style()
+
+    from scipy.cluster.hierarchy import dendrogram, linkage as linkage_func
+
+    # Calculate linkage matrix
+    linkage_matrix = linkage_func(X, method=linkage)
+
+    fig, ax = plt.subplots(figsize=(12, 8), dpi=config.DPI)
+
+    # Create dendrogram
+    dendrogram(
+        linkage_matrix,
+        ax=ax,
+        leaf_rotation=90,
+        leaf_font_size=8,
+        show_contracted=True
+    )
+
+    ax.set_xlabel('Sample Index', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Distance', fontsize=12, fontweight='bold')
+    ax.set_title(f'Hierarchical Clustering Dendrogram\n(Linkage: {linkage})',
+                 fontsize=14, fontweight='bold', pad=20)
+
+    # Add horizontal line for n_clusters if specified
+    if n_clusters is not None:
+        from scipy.cluster.hierarchy import fcluster
+        clusters = fcluster(linkage_matrix, n_clusters, criterion='maxclust')
+        heights = linkage_matrix[:, 2]
+        threshold_height = heights[-n_clusters + 1] if n_clusters > 1 else heights[-1]
+
+        ax.axhline(y=threshold_height, color='red', linestyle='--', linewidth=2,
+                  label=f'Cut for {n_clusters} clusters')
+        ax.legend()
+
+    plt.tight_layout()
+
+    if save_path or config.SAVE_FIGURES:
+        if save_path is None:
+            save_path = os.path.join(config.RESULTS_DIR, f'hierarchical_dendrogram.{config.FIGURE_FORMAT}')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
+        if config.VERBOSE:
+            print(f"✓ Hierarchical dendrogram saved to {save_path}")
+
+    return fig
+
+
+def plot_clusters_3d(X, labels, centroids=None, method='pca', save_path=None):
+    """
+    Create 3D cluster visualization.
+
+    Parameters:
+    -----------
+    X : array-like
+        Scaled feature matrix
+    labels : array-like
+        Cluster labels
+    centroids : array-like, optional
+        Cluster centroids (for K-Means)
+    method : str
+        Dimensionality reduction method: 'pca' or 'raw'
+    save_path : str, optional
+        Path to save the figure
+
+    Returns:
+    --------
+    matplotlib.figure.Figure
+        The figure object
+    """
+    setup_plot_style()
+
+    from mpl_toolkits.mplot3d import Axes3D
+
+    if method == 'pca' and X.shape[1] >= 3:
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=3)
+        X_3d = pca.fit_transform(X)
+        xlabel, ylabel, zlabel = f'PC1 ({pca.explained_variance_ratio_[0]:.1%})', \
+                                f'PC2 ({pca.explained_variance_ratio_[1]:.1%})', \
+                                f'PC3 ({pca.explained_variance_ratio_[2]:.1%})'
+        title_suffix = '(PCA)'
+        centroids_3d = pca.transform(centroids) if centroids is not None else None
+    elif X.shape[1] >= 3:
+        X_3d = X[:, :3]
+        xlabel, ylabel, zlabel = 'Feature 1', 'Feature 2', 'Feature 3'
+        title_suffix = '(First 3 features)'
+        centroids_3d = centroids[:, :3] if centroids is not None else None
+    else:
+        raise ValueError("Data must have at least 3 features for 3D visualization")
+
+    fig = plt.figure(figsize=(12, 8), dpi=config.DPI)
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot clusters
+    n_clusters = len(np.unique(labels))
+    colors = plt.cm.get_cmap(config.COLOR_PALETTE)(np.linspace(0, 1, n_clusters))
+
+    for i in range(n_clusters):
+        cluster_points = X_3d[labels == i]
+        ax.scatter(cluster_points[:, 0], cluster_points[:, 1], cluster_points[:, 2],
+                  c=[colors[i]], label=f'Cluster {i}',
+                  alpha=0.6, s=50, edgecolors='black', linewidth=0.5)
+
+    # Plot centroids if provided
+    if centroids is not None and centroids_3d is not None:
+        ax.scatter(centroids_3d[:, 0], centroids_3d[:, 1], centroids_3d[:, 2],
+                  c='red', marker='X', s=300, edgecolors='black',
+                  linewidth=2, label='Centroids')
+
+    ax.set_xlabel(xlabel, fontsize=10, fontweight='bold')
+    ax.set_ylabel(ylabel, fontsize=10, fontweight='bold')
+    ax.set_zlabel(zlabel, fontsize=10, fontweight='bold')
+    ax.set_title(f'3D Cluster Visualization {title_suffix}', fontsize=14, fontweight='bold', pad=20)
+    ax.legend(fontsize=10, loc='best')
+
+    plt.tight_layout()
+
+    if save_path or config.SAVE_FIGURES:
+        if save_path is None:
+            save_path = os.path.join(config.RESULTS_DIR, f'cluster_visualization_3d.{config.FIGURE_FORMAT}')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
+        if config.VERBOSE:
+            print(f"✓ 3D cluster visualization saved to {save_path}")
+
+    return fig
+
+
+def plot_cluster_profiles(X, labels, feature_names=None, save_path=None):
+    """
+    Plot cluster profiles showing feature means for each cluster.
+
+    Parameters:
+    -----------
+    X : array-like
+        Scaled feature matrix
+    labels : array-like
+        Cluster labels
+    feature_names : list, optional
+        Names of features
+    save_path : str, optional
+        Path to save the figure
+
+    Returns:
+    --------
+    matplotlib.figure.Figure
+        The figure object
+    """
+    setup_plot_style()
+
+    n_clusters = len(np.unique(labels))
+    n_features = X.shape[1]
+
+    if feature_names is None:
+        feature_names = [f'Feature {i+1}' for i in range(n_features)]
+
+    # Calculate cluster means
+    cluster_means = np.zeros((n_clusters, n_features))
+    for i in range(n_clusters):
+        cluster_means[i] = X[labels == i].mean(axis=0)
+
+    fig, ax = plt.subplots(figsize=(12, 6), dpi=config.DPI)
+
+    # Plot cluster profiles
+    colors = plt.cm.get_cmap(config.COLOR_PALETTE)(np.linspace(0, 1, n_clusters))
+
+    for i in range(n_clusters):
+        ax.plot(feature_names, cluster_means[i], 'o-', linewidth=3, markersize=8,
+                color=colors[i], label=f'Cluster {i}', alpha=0.8)
+
+    ax.set_xlabel('Features', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Mean Value (Standardized)', fontsize=12, fontweight='bold')
+    ax.set_title('Cluster Profiles - Feature Means by Cluster', fontsize=14, fontweight='bold', pad=20)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    # Rotate x-axis labels if many features
+    if len(feature_names) > 5:
+        plt.xticks(rotation=45, ha='right')
+
+    plt.tight_layout()
+
+    if save_path or config.SAVE_FIGURES:
+        if save_path is None:
+            save_path = os.path.join(config.RESULTS_DIR, f'cluster_profiles.{config.FIGURE_FORMAT}')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
+        if config.VERBOSE:
+            print(f"✓ Cluster profiles saved to {save_path}")
+
+    return fig
+
+
+def plot_all_visualizations_extended(analyzer, X, feature_names=None, save_dir=None):
+    """
+    Create all visualizations for any ClusteringAnalyzer object.
+
+    Parameters:
+    -----------
+    analyzer : ClusteringAnalyzer
+        Fitted ClusteringAnalyzer object
+    X : array-like
+        Scaled feature matrix
+    feature_names : list, optional
+        Names of features
+    save_dir : str, optional
+        Directory to save all figures
+
+    Returns:
+    --------
+    dict
+        Dictionary of figure objects
+    """
+    if save_dir is None:
+        save_dir = config.RESULTS_DIR
+
+    os.makedirs(save_dir, exist_ok=True)
+
+    figures = {}
+
+    # Algorithm-specific visualizations
+    if analyzer.algorithm == 'kmeans':
+        # Elbow curve
+        if analyzer.inertias_ is not None:
+            figures['elbow'] = plot_elbow_curve(
+                analyzer.k_values_, analyzer.inertias_,
+                optimal_k=analyzer.n_clusters_,
+                save_path=os.path.join(save_dir, f'elbow_curve.{config.FIGURE_FORMAT}')
+            )
+
+        # Silhouette scores
+        if analyzer.silhouette_scores_ is not None:
+            figures['silhouette_scores'] = plot_silhouette_scores(
+                analyzer.k_values_, analyzer.silhouette_scores_,
+                optimal_k=analyzer.n_clusters_,
+                save_path=os.path.join(save_dir, f'silhouette_scores.{config.FIGURE_FORMAT}')
+            )
+
+        # Comparison plot
+        if analyzer.inertias_ is not None and analyzer.silhouette_scores_ is not None:
+            figures['comparison'] = plot_cluster_comparison(
+                analyzer.k_values_, analyzer.inertias_, analyzer.silhouette_scores_,
+                save_path=os.path.join(save_dir, f'cluster_comparison.{config.FIGURE_FORMAT}')
+            )
+
+    elif analyzer.algorithm == 'dbscan':
+        # K-distance plot
+        figures['k_distance'] = plot_dbscan_k_distance(
+            X, k=analyzer.min_samples_,
+            save_path=os.path.join(save_dir, f'dbscan_k_distance.{config.FIGURE_FORMAT}')
+        )
+
+    elif analyzer.algorithm == 'hierarchical':
+        # Dendrogram
+        figures['dendrogram'] = plot_hierarchical_dendrogram(
+            X, n_clusters=analyzer.n_clusters_, linkage=analyzer.linkage_,
+            save_path=os.path.join(save_dir, f'hierarchical_dendrogram.{config.FIGURE_FORMAT}')
+        )
+
+    # Common visualizations for all algorithms
+
+    # Silhouette analysis plot
+    if analyzer.labels_ is not None and analyzer.n_clusters_ > 1:
+        figures['silhouette_analysis'] = plot_silhouette_analysis(
+            X, analyzer.labels_, n_clusters=analyzer.n_clusters_,
+            save_path=os.path.join(save_dir, f'silhouette_analysis.{config.FIGURE_FORMAT}')
+        )
+
+    # 2D cluster visualization
+    centroids = analyzer.get_cluster_centers()
+    figures['clusters_2d'] = plot_clusters(
+        X, analyzer.labels_, centroids=centroids,
+        save_path=os.path.join(save_dir, f'cluster_visualization.{config.FIGURE_FORMAT}')
+    )
+
+    # 3D visualization (if enough features)
+    if X.shape[1] >= 3:
+        figures['clusters_3d'] = plot_clusters_3d(
+            X, analyzer.labels_, centroids=centroids,
+            save_path=os.path.join(save_dir, f'cluster_visualization_3d.{config.FIGURE_FORMAT}')
+        )
+
+    # Cluster profiles
+    figures['cluster_profiles'] = plot_cluster_profiles(
+        X, analyzer.labels_, feature_names=feature_names,
+        save_path=os.path.join(save_dir, f'cluster_profiles.{config.FIGURE_FORMAT}')
+    )
+
+    return figures
+
+
 # Example usage
 if __name__ == "__main__":
     from sklearn.datasets import make_blobs
