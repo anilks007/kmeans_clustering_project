@@ -1,0 +1,21 @@
+# Core dependencies
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+
+# Visualization
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# Web application
+streamlit>=1.25.0
+
+# Jupyter notebook
+jupyter>=1.0.0
+ipykernel>=6.0.0
+
+# Optional: For interactive visualizations
+# plotly>=5.0.0
+
+# Optional: For progress bars
+# tqdm>=4.62.0
